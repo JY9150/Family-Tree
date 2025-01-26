@@ -10,8 +10,7 @@
 #d3-container {
     height: 100vh;
     width: 100vw;
-    background-color: #8b8b8b;
-    border: 2px solid red;
+    background-color: #cccccc;
 }
 
 html, body {

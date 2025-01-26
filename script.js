@@ -19,40 +19,54 @@ const data = [
     id: "2",
     name: "Mom",
     nickname: "Mummy",
+    gender: "female",
     alive: true,
   },
   {
     id: "3",
     name: "Son-1",
+    gender: "male"
   },
   {
     id: "4",
     name: "Daughter-1",
+    gender: "female"
   },
   {
     id: "5",
     name: "Grandpa",
+    gender: "male",
     spouse: ["6"],
     children: ["1", "7"],
   },
   {
     id: "6",
     name: "Grandma",
+    gender: "female"
   },
   {
     id: "7",
     name: "Uncle",
+    gender: "male"
   },
   {
     id: "8",
     name: "Grandpa-2",
+    gender: "female",
     spouse: ["5"],
     children: ["9"],
   },
   {
     id: "9",
     name: "Aunt",
+    gender: "female"
   },
+  {
+    id: "10",
+    name: "Son1's partner",
+    gender: "non-binary",
+    spouse: ["3"],
+  }
 ];
 
 const person_template = {
@@ -226,6 +240,8 @@ function createNodes(data, fakeNodes) {
       id: person.id,
       name: person.name,
       nickname: person.nickname,
+      gender: person.gender,
+      status: person.status,
     });
   });
   return in_nodes.concat(fakeNodes);
@@ -262,6 +278,11 @@ let fakeNode_temp_id = 0;
 const links = createLinks(validData);
 const nodes = createNodes(validData, fakeNodes);
 
+// color scale
+const genderColorScale = d3.scaleOrdinal().
+    domain(["male", "female", "non-binary" ,"unknown"]).range(["blue", "red", "grey", "black"]);
+
+
 const simulation = d3
   .forceSimulation(nodes)
   .force(
@@ -269,7 +290,13 @@ const simulation = d3
     d3
       .forceLink(links)
       .id((d) => d.id)
-      .distance(100)
+      .distance((link) => {
+        if (link.target.name === "Fake") {
+          return 50;
+        } else {
+          return 100;
+        }
+      })
   )
   .force("charge", d3.forceManyBody().strength(-300))
   .force("center", d3.forceCenter(svg_width / 2, svg_height / 2));
@@ -297,7 +324,10 @@ const nodeGroup = container
     d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended)
   );
 
-nodeGroup.append("circle").attr("r", 10).attr("fill", "blue");
+nodeGroup
+  .append("circle")
+  .attr("r", 10)
+  .attr("fill", (d) => genderColorScale(d.gender));
 
 nodeGroup
   .append("text")
