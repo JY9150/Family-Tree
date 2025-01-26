@@ -1,11 +1,17 @@
-.node circle {
-    fill: #fff;
-    stroke: steelblue;
+.node circle.highlight {
     stroke-width: 3px;
+    fill: orange;
 }
-.node text { font: 12px sans-serif; }
-.link { fill: none; stroke: #ccc; stroke-width: 2px; }
 
+.node text {
+    font: 12px sans-serif;
+}
+
+
+.link.highlight {
+    stroke: orange;
+    stroke-width: 5px;
+}
 
 #d3-container {
     height: 100vh;
@@ -13,7 +19,8 @@
     background-color: #cccccc;
 }
 
-html, body {
+html,
+body {
     margin: 0;
     padding: 0;
 }

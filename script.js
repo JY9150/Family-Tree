@@ -25,12 +25,12 @@ const data = [
   {
     id: "3",
     name: "Son-1",
-    gender: "male"
+    gender: "male",
   },
   {
     id: "4",
     name: "Daughter-1",
-    gender: "female"
+    gender: "female",
   },
   {
     id: "5",
@@ -42,12 +42,12 @@ const data = [
   {
     id: "6",
     name: "Grandma",
-    gender: "female"
+    gender: "female",
   },
   {
     id: "7",
     name: "Uncle",
-    gender: "male"
+    gender: "male",
   },
   {
     id: "8",
@@ -59,14 +59,14 @@ const data = [
   {
     id: "9",
     name: "Aunt",
-    gender: "female"
+    gender: "female",
   },
   {
     id: "10",
     name: "Son1's partner",
     gender: "non-binary",
     spouse: ["3"],
-  }
+  },
 ];
 
 const person_template = {
@@ -153,14 +153,6 @@ function parseDataToTree(data) {
     let node;
     console.log("Person: ", person);
     if (person.spouse.length > 0) {
-      person.spouse.forEach((spouse_id) => {
-        console.log("Spouse: ", spouse_id);
-        console.log(
-          "Spouse: ",
-          data.find((person) => person.id === spouse_id)
-        );
-      });
-
       node = {
         name: "Fake",
         children: [
@@ -211,11 +203,17 @@ function createLinks(data) {
     if (person.spouse.length > 0) {
       // Exist spouse
       const fakeNode_id = (--fakeNode_temp_id).toString();
-      console.log(fakeNode_temp_id);
-      console.log("Fake Node ID: ", fakeNode_id);
       person.spouse.forEach((spouse_id) => {
-        links.push({ source: person.id, target: fakeNode_id });
-        links.push({ source: spouse_id, target: fakeNode_id });
+        links.push({
+          source: person.id,
+          target: fakeNode_id,
+          type: "marriage",
+        });
+        links.push({
+          source: spouse_id,
+          target: fakeNode_id,
+          type: "marriage",
+        });
       });
 
       fakeNodes.push({
@@ -225,7 +223,11 @@ function createLinks(data) {
 
       if (person.children.length > 0) {
         person.children.forEach((child_id) => {
-          links.push({ source: fakeNode_id, target: child_id });
+          links.push({
+            source: fakeNode_id,
+            target: child_id,
+            type: "direct-relative",
+          });
         });
       }
     }
@@ -279,9 +281,10 @@ const links = createLinks(validData);
 const nodes = createNodes(validData, fakeNodes);
 
 // color scale
-const genderColorScale = d3.scaleOrdinal().
-    domain(["male", "female", "non-binary" ,"unknown"]).range(["blue", "red", "grey", "black"]);
-
+const genderColorScale = d3
+  .scaleOrdinal()
+  .domain(["male", "female", "non-binary", "unknown"])
+  .range(["blue", "red", "grey", "black"]);
 
 const simulation = d3
   .forceSimulation(nodes)
@@ -304,21 +307,21 @@ const simulation = d3
 // Draw links
 const link = container
   .append("g")
-  .selectAll("line")
+  .selectAll(".link")
   .data(links)
   .enter()
   .append("line")
-  .attr("class", "links")
+  .attr("class", "link")
   .attr("stroke", (d) => (d.target.name === "Fake" ? "yellow" : "black"))
   .attr("stroke-width", 4);
 
 const nodeGroup = container
   .append("g")
-  .selectAll("g")
+  .selectAll(".node")
   .data(nodes)
   .enter()
   .append("g")
-  .attr("class", "nodes")
+  .attr("class", "node")
   .attr("display", (d) => (d.name === "Fake" ? "none" : "block"))
   .call(
     d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended)
@@ -371,6 +374,41 @@ container
   .attr("text-anchor", "middle")
   .attr("x", svg_width / 2)
   .attr("y", svg_height / 2);
+
+// // Function to highlight blood relatives
+function highlightDirectRelatives(nodeId) {
+  let relative_nodes_ids = new Set();
+  relative_nodes_ids.add(nodeId);
+
+  relative_nodes_ids.forEach((id) => {
+    // console.log(id)
+    // console.log(
+    links
+      .filter((d) => d.source.id === id)
+      .forEach((d) => relative_nodes_ids.add(d.target.id));
+  });
+  return [... relative_nodes_ids]
+}
+
+nodeGroup
+  .on("mouseover", function (event, d) {
+    const relative_nodes_ids = highlightDirectRelatives(d.id);
+
+    nodeGroup
+      .select("circle")
+      .classed("highlight", (g) => relative_nodes_ids.includes(g.id));
+  })
+  .on("mouseout", function () {
+    nodeGroup.select("circle").classed("highlight", false);
+  });
+
+link
+  .on("mouseover", function (event, d) {
+    d3.select(this).classed("highlight", true);
+  })
+  .on("mouseout", function () {
+    d3.select(this).classed("highlight", false);
+  });
 
 let currentTransform = d3.zoomIdentity;
 
