@@ -29,6 +29,30 @@ const data = [
     id: "4",
     name: "Daughter-1",
   },
+  {
+    id: "5",
+    name: "Grandpa",
+    spouse: ["6"],
+    children: ["1", "7"],
+  },
+  {
+    id: "6",
+    name: "Grandma",
+  },
+  {
+    id: "7",
+    name: "Uncle",
+  },
+  {
+    id: "8",
+    name: "Grandpa-2",
+    spouse: ["5"],
+    children: ["9"],
+  },
+  {
+    id: "9",
+    name: "Aunt",
+  },
 ];
 
 const person_template = {
@@ -171,28 +195,40 @@ function createLinks(data) {
   const links = [];
   data.forEach((person) => {
     if (person.spouse.length > 0) {
+      // Exist spouse
+      const fakeNode_id = (--fakeNode_temp_id).toString();
+      console.log(fakeNode_temp_id);
+      console.log("Fake Node ID: ", fakeNode_id);
       person.spouse.forEach((spouse_id) => {
-        links.push({ source: person.id, target: spouse_id });
+        links.push({ source: person.id, target: fakeNode_id });
+        links.push({ source: spouse_id, target: fakeNode_id });
       });
-    }
 
-    if (person.children.length > 0) {
-      person.children.forEach((child_id) => {
-        links.push({ source: person.id, target: child_id });
+      fakeNodes.push({
+        id: fakeNode_id,
+        name: "Fake",
       });
+
+      if (person.children.length > 0) {
+        person.children.forEach((child_id) => {
+          links.push({ source: fakeNode_id, target: child_id });
+        });
+      }
     }
   });
   return links;
 }
 
-function createNodes(data) {
+function createNodes(data, fakeNodes) {
   const in_nodes = [];
-  console.log(data);
   data.forEach((person) => {
-    in_nodes.push({ id: person.id, name: person.name, nickname: person.nickname });
+    in_nodes.push({
+      id: person.id,
+      name: person.name,
+      nickname: person.nickname,
+    });
   });
-  console.log("node", in_nodes);
-  return in_nodes;
+  return in_nodes.concat(fakeNodes);
 }
 
 function dragstarted(event) {
@@ -220,8 +256,11 @@ const svg_height = +svg.style("height").slice(0, -2);
 const validData = paraseData(data);
 checkDataValid(validData);
 
+const fakeNodes = [];
+let fakeNode_temp_id = 0;
+
 const links = createLinks(validData);
-const nodes = createNodes(validData);
+const nodes = createNodes(validData, fakeNodes);
 
 const simulation = d3
   .forceSimulation(nodes)
@@ -235,8 +274,6 @@ const simulation = d3
   .force("charge", d3.forceManyBody().strength(-300))
   .force("center", d3.forceCenter(svg_width / 2, svg_height / 2));
 
-console.log(svg_width, svg_height);
-
 // Draw links
 const link = container
   .append("g")
@@ -244,7 +281,8 @@ const link = container
   .data(links)
   .enter()
   .append("line")
-  .attr("stroke", "yellow")
+  .attr("class", "links")
+  .attr("stroke", (d) => (d.target.name === "Fake" ? "yellow" : "black"))
   .attr("stroke-width", 4);
 
 const nodeGroup = container
@@ -253,6 +291,8 @@ const nodeGroup = container
   .data(nodes)
   .enter()
   .append("g")
+  .attr("class", "nodes")
+  .attr("display", (d) => (d.name === "Fake" ? "none" : "block"))
   .call(
     d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended)
   );
@@ -272,22 +312,35 @@ simulation.on("tick", () => {
     .attr("x2", (d) => d.target.x)
     .attr("y2", (d) => d.target.y);
 
+  nodes.forEach((d) => {
+    if (d.name === "Fake") {
+      // !! All Fake node are in the Target
+      const left_node = links.find((link) => link.target.id === d.id).source;
+      const right_node = links.find(
+        (link) => link.target.id === d.id && link.source.id !== left_node.id
+      ).source;
+
+      const new_cx = (left_node.x + right_node.x) / 2;
+      const new_cy = (left_node.y + right_node.y) / 2;
+
+      d.x = new_cx;
+      d.y = new_cy;
+    }
+  });
+
   nodeGroup.attr("transform", (d) => `translate(${d.x}, ${d.y})`);
 });
 
 container
-  .append("circle")
+  .append("text")
   .attr("r", 10)
-  .attr("fill", "red")
-  .attr("cx", svg_width / 2)
-  .attr("cy", svg_height / 2);
-
-container
-  .append("circle")
-  .attr("r", 10)
-  .attr("fill", "green")
-  .attr("cx", svg_width)
-  .attr("cy", svg_height);
+  .text("+")
+  .attr("color", "red")
+  .attr("font-size", "40px")
+  .attr("font-weight", "bold")
+  .attr("text-anchor", "middle")
+  .attr("x", svg_width / 2)
+  .attr("y", svg_height / 2);
 
 let currentTransform = d3.zoomIdentity;
 
