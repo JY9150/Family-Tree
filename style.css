@@ -1,0 +1,20 @@
+.node circle {
+    fill: #fff;
+    stroke: steelblue;
+    stroke-width: 3px;
+}
+.node text { font: 12px sans-serif; }
+.link { fill: none; stroke: #ccc; stroke-width: 2px; }
+
+
+#d3-container {
+    height: 100vh;
+    width: 100vw;
+    background-color: #8b8b8b;
+    border: 2px solid red;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+}
