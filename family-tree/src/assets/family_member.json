@@ -1,0 +1,84 @@
+[
+    {
+        "id": "1",
+        "name": "Dad",
+        "nickname": "Daddy",
+        "status": "alive",
+        "gender": "male",
+        "spouse": [
+            "2"
+        ],
+        "children": [
+            "3",
+            "4"
+        ],
+        "image": "",
+        "birth": "1970-01-01",
+        "death": "",
+        "location": "Toronto",
+        "title": "Mr."
+    },
+    {
+        "id": "2",
+        "name": "Mom",
+        "nickname": "Mummy",
+        "gender": "female",
+        "alive": true
+    },
+    {
+        "id": "3",
+        "name": "Son-1",
+        "gender": "male"
+    },
+    {
+        "id": "4",
+        "name": "Daughter-1",
+        "gender": "female"
+    },
+    {
+        "id": "5",
+        "name": "Grandpa",
+        "gender": "male",
+        "spouse": [
+            "6"
+        ],
+        "children": [
+            "1",
+            "7"
+        ]
+    },
+    {
+        "id": "6",
+        "name": "Grandma",
+        "gender": "female"
+    },
+    {
+        "id": "7",
+        "name": "Uncle",
+        "gender": "male"
+    },
+    {
+        "id": "8",
+        "name": "Grandpa-2",
+        "gender": "female",
+        "spouse": [
+            "5"
+        ],
+        "children": [
+            "9"
+        ]
+    },
+    {
+        "id": "9",
+        "name": "Aunt",
+        "gender": "female"
+    },
+    {
+        "id": "10",
+        "name": "Son1's partner",
+        "gender": "non-binary",
+        "spouse": [
+            "3"
+        ]
+    }
+]
