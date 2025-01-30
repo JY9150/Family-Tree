@@ -5,20 +5,45 @@ import json_data from "./assets/family_member.json";
 import PropTypes from "prop-types";
 import { width } from "@mui/system";
 
-function TreeChart({ data }) {
+function TreeChart({ data, svgRef }) {
   const gRef = useRef();
-  const [currentTransform, setCurrentTransform] = useState(d3.zoomIdentity);
 
   useEffect(() => {
-    console.log("twst");
+    if (!svgRef.current || !gRef.current) {
+      return;
+    }
+    const svg = d3.select(svgRef.current);
+    const group = d3.select(gRef.current);
+
+    group.selectAll("*").remove();
+
+
+    const svg_width =
+      svg.node().clientWidth || svg.node().getBoundingClientRect().width;
+    const svg_height =
+      svg.node().clientHeight || svg.node().getBoundingClientRect().height;
+
+    group.attr("transfrom", `translate(${svg_width / 2}, ${svg_height / 2})`);
+
+    function dragstarted(event) {
+      if (!event.active) simulation.alphaTarget(0.3).restart();
+      event.subject.fx = event.subject.x;
+      event.subject.fy = event.subject.y;
+    }
+    
+    function dragged(event) {
+      event.subject.fx = event.x;
+      event.subject.fy = event.y;
+    }
+    
+    function dragended(event) {
+      if (!event.active) simulation.alphaTarget(0);
+      event.subject.fx = null;
+      event.subject.fy = null;
+    }
+
     const validData = paraseData(data);
     checkDataValid(validData);
-    const g = d3.select(gRef.current);
-    g.attr("width", "200").attr("height", "200");
-    // g.style("width", "100%").style("height", "100%");
-
-    const g_width = g.node().getBoundingClientRect().width;
-    const g_height = g.node().getBoundingClientRect().height;
 
     const links = createLinks(validData);
     const nodes = createNodesFromLink(links, data);
@@ -26,7 +51,6 @@ function TreeChart({ data }) {
     console.log("links", links);
     console.log("nodes", nodes);
 
-    // color scale
     const genderColorScale = d3
       .scaleOrdinal()
       .domain(["male", "female", "non-binary", "unknown"])
@@ -48,10 +72,10 @@ function TreeChart({ data }) {
           })
       )
       .force("charge", d3.forceManyBody().strength(-300))
-      .force("center", d3.forceCenter(g_width / 2, g_height / 2));
+      .force("center", d3.forceCenter(svg_width / 2, svg_height / 2));
 
     // Draw links
-    const link = g
+    const link = group
       .append("g")
       .selectAll(".link")
       .data(links)
@@ -61,7 +85,7 @@ function TreeChart({ data }) {
       .attr("stroke", (d) => (d.target.name === "fake" ? "yellow" : "black"))
       .attr("stroke-width", 4);
 
-    const nodeGroup = g
+    const nodeGroup = group
       .append("g")
       .selectAll(".node")
       .data(nodes)
@@ -71,9 +95,9 @@ function TreeChart({ data }) {
       .attr("display", (d) => (d.name === "fake" ? "none" : "block"))
       .call(
         d3.drag()
-        // .on("start", dragstarted)
-        // .on("drag", dragged)
-        // .on("end", dragended)
+        .on("start", dragstarted)
+        .on("drag", dragged)
+        .on("end", dragended)
       );
 
     nodeGroup
@@ -115,55 +139,43 @@ function TreeChart({ data }) {
       nodeGroup.attr("transform", (d) => `translate(${d.x}, ${d.y})`);
     });
 
-    g.append("text")
-      .attr("cx", g_width / 2)
-      .attr("cy", g_height / 2)
+    group
+      .append("text")
+      .attr("cx", svg_width / 2)
+      .attr("cy", svg_height / 2)
       .attr("text-anchor", "middle")
       .attr("font-size", 50)
       .text("+");
 
-    // Dragging the canvas
-    let currentTransform = d3.zoomIdentity;
-    g.call(
-      d3
-        .drag()
-        .on("start", (event) => {
-          console.log("start");
+    const drag = d3
+    .drag()
+    .on("start", (event) => {
+      console.log("start");
+      const { x, y } = d3.zoomTransform(group.node());
+      event.subject = { startX: event.x - x, startY: event.y - y };
+    })
+    .on("drag", (event) => {
+      const x = event.x - event.subject.startX;
+      const y = event.y - event.subject.startY;
+      svg.attr("transform", `translate(${x}, ${y}) scale(${d3.zoomTransform(group.node()).k})`);
+    });
 
-          // setCurrentTransform(d3.zoomTransform(g.node()));
-          console.log("currentTransform", currentTransform);
-          currentTransform.startX = event.x - currentTransform.x;
-          currentTransform.startY = event.y - currentTransform.y;
-          g.style("cursor", "grabbing");
-        })
-        .on("drag", (event) => {
-          currentTransform.x = event.x - currentTransform.startX;
-          currentTransform.y = event.y - currentTransform.startY;
+    const zoom = d3.zoom().on("zoom", (event) => {
+      group.attr("transform", event.transform);
+    });
 
-          const transform = `translate(${currentTransform.x}, ${currentTransform.y}) scale(${currentTransform.k})`;
-          g.attr("transform", transform);
-        })
-        .on("end", () => {
-          g.style("cursor", "grab");
-        })
-    );
+    svg.call(zoom);
+    svg.call(drag);
+  }, [data, svgRef, gRef]);
 
-    // Zooming and save the current transformation
-    g.call(
-      d3.zoom().on("zoom", (event) => {
-        // Apply the zoom transformation to the container group
-        // const transform = `translate(${currentTransform.x}, ${currentTransform.y}) scale(${event.transform.k})`;
-        g.attr("transform", event.transform);
-      })
-    );
-  });
-
-  return <g ref={gRef} className="treeChart" id="treeChart"/>;
+  return <g ref={gRef} className="treeChart" id="treeChart" />;
 }
 
 TreeChart.propTypes = {
   data: PropTypes.array.isRequired,
+  svgRef: PropTypes.object.isRequired,
 };
+
 Canvas.propTypes = {
   data: PropTypes.array.isRequired,
 };
@@ -181,13 +193,19 @@ function App() {
 
 function Canvas({ data }) {
   const svgRef = useRef();
+  const [currentTransform, setCurrentTransform] = useState(d3.zoomIdentity);
+
+  useEffect(() => {
+    if (!svgRef.current) return;
+
+    const svg = d3.select(svgRef.current);
+  }, [svgRef, currentTransform]);
 
   return (
     <>
       <svg ref={svgRef} className="canvas" id="canvas">
-        <TreeChart data={data} />
+        <TreeChart data={data} svgRef={svgRef} />
       </svg>
-      ;
     </>
   );
 }

@@ -5,15 +5,23 @@
 
 html,
 body {
-    margin: 0;
-    padding: 0;
+  margin: 0;
+  padding: 0;
 }
 
 .canvas {
+  cursor: grab;
   background-color: rgb(185, 192, 192);
+  display: flex;
   justify-content: center;
+  align-items: center;
   height: 100vh;
   width: 100vw;
+  position: relative;
+}
+
+.canvas:active {
+  cursor: grabbing;
 }
 
 .node circle.highlight {
@@ -31,6 +39,10 @@ body {
 }
 
 .treeChart {
-  background-color: #118238;
-  border: 1px solid rgb(255, 11, 11);
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  background-color: rgb(77, 207, 207);
 }
