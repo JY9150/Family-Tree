@@ -3,120 +3,145 @@ import * as d3 from "d3";
 import "./App.css";
 import json_data from "./assets/family_member.json";
 import PropTypes from "prop-types";
-import { width } from "@mui/system";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Typography from "@mui/material/Typography";
 
-function TreeChart({ data, svgRef }) {
-  const gRef = useRef();
+Canvas.propTypes = {
+  data: PropTypes.array.isRequired,
+};
+
+TreeChart.propTypes = {
+  data: PropTypes.array.isRequired,
+  svgRef: PropTypes.object.isRequired,
+};
+
+MyPersonCard.propTypes = {
+  person: PropTypes.object.isRequired,
+  simulation: PropTypes.object.isRequired,
+};
+
+MyLink.propTypes = {
+  link: PropTypes.object.isRequired,
+};
+
+function MyPersonCard({ person, simulation }) {
+  const selfRef = useRef();
+  const cardWidth = 200;
+  const cardHeight = 100;
+
+  const genderColorScale = d3
+    .scaleOrdinal()
+    .domain(["male", "female", "non-binary", "unknown"])
+    .range(["blue", "red", "grey", "black"]);
 
   useEffect(() => {
-    if (!svgRef.current || !gRef.current) {
+    if (!selfRef.current) {
       return;
     }
-    const svg = d3.select(svgRef.current);
-    const group = d3.select(gRef.current);
 
-    group.selectAll("*").remove();
+    const card = d3.select(selfRef.current);
 
+    card.attr("transform", `translate(${-cardWidth / 2}, ${0})`);
 
-    const svg_width =
-      svg.node().clientWidth || svg.node().getBoundingClientRect().width;
-    const svg_height =
-      svg.node().clientHeight || svg.node().getBoundingClientRect().height;
+    const drag = d3
+      .drag()
+      .on("start", (event) => {
+        console.log("start");
+        console.log("event", event);
+        if (!event.active) simulation.alphaTarget(0);
+        event.subject.fx = event.subject.x;
+        event.subject.fy = event.subject.y;
+      })
+      .on("drag", (event) => {
+        event.subject.fx = event.x;
+        event.subject.fy = event.y;
+      })
+      .on("end", (event) => {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        event.subject.fx = null;
+        event.subject.fy = null;
+      });
+    card.call(drag);
+  }, [simulation]);
 
-    group.attr("transfrom", `translate(${svg_width / 2}, ${svg_height / 2})`);
+  return (
+    <g ref={selfRef}>
+      <foreignObject
+        key={person.id}
+        id={"card-" + person.id}
+        className="node"
+        width={200}
+        height={100}
+      >
+        <Card sx={{ minWidth: 100, minHeight: 50 }}>
+          <CardContent>
+            <Typography variant="h7">{person.name}</Typography>
+          </CardContent>
+        </Card>
+      </foreignObject>
+    </g>
+  );
+}
 
-    function dragstarted(event) {
-      if (!event.active) simulation.alphaTarget(0.3).restart();
-      event.subject.fx = event.subject.x;
-      event.subject.fy = event.subject.y;
+function MyLink({ link }) {
+  const selfRef = useRef();
+
+  useEffect(() => {
+    if (!selfRef.current) {
+      return;
     }
-    
-    function dragged(event) {
-      event.subject.fx = event.x;
-      event.subject.fy = event.y;
-    }
-    
-    function dragended(event) {
-      if (!event.active) simulation.alphaTarget(0);
-      event.subject.fx = null;
-      event.subject.fy = null;
-    }
+  }, []);
 
-    const validData = paraseData(data);
-    checkDataValid(validData);
+  return (
+    <line
+      ref={selfRef}
+      id={`link-${link.source.id}-${link.target.id}`}
+      className="line"
+      stroke={link.target.name === "fake" ? "yellow" : "black"}
+      x1={link.source.x}
+      y1={link.source.y}
+      x2={link.target.x}
+      y2={link.target.y}
+      strokeWidth={4}
+    />
+  );
+}
 
-    const links = createLinks(validData);
-    const nodes = createNodesFromLink(links, data);
+function TreeChart({ data, svgRef }) {
+  const selfRef = useRef();
+  const validData = paraseData(data);
+  checkDataValid(validData);
 
-    console.log("links", links);
-    console.log("nodes", nodes);
+  const linkLength = 200;
 
-    const genderColorScale = d3
-      .scaleOrdinal()
-      .domain(["male", "female", "non-binary", "unknown"])
-      .range(["blue", "red", "grey", "black"]);
-
-    const simulation = d3
-      .forceSimulation(nodes)
-      .force(
-        "link",
-        d3
-          .forceLink(links)
-          .id((d) => d.id)
-          .distance((link) => {
-            if (link.target.name === "fake") {
-              return 50;
-            } else {
-              return 100;
-            }
-          })
-      )
-      .force("charge", d3.forceManyBody().strength(-300))
-      .force("center", d3.forceCenter(svg_width / 2, svg_height / 2));
-
-    // Draw links
-    const link = group
-      .append("g")
-      .selectAll(".link")
-      .data(links)
-      .enter()
-      .append("line")
-      .attr("class", "link")
-      .attr("stroke", (d) => (d.target.name === "fake" ? "yellow" : "black"))
-      .attr("stroke-width", 4);
-
-    const nodeGroup = group
-      .append("g")
-      .selectAll(".node")
-      .data(nodes)
-      .enter()
-      .append("g")
-      .attr("class", "node")
-      .attr("display", (d) => (d.name === "fake" ? "none" : "block"))
-      .call(
-        d3.drag()
-        .on("start", dragstarted)
-        .on("drag", dragged)
-        .on("end", dragended)
-      );
-
-    nodeGroup
-      .append("circle")
-      .attr("r", 10)
-      .attr("fill", (d) => genderColorScale(d.gender));
-
-    nodeGroup
-      .append("text")
-      .attr("dy", -15)
-      .attr("text-anchor", "middle")
-      .text((d) => d.name);
-
-    simulation.on("tick", () => {
-      link
-        .attr("x1", (d) => d.source.x)
-        .attr("y1", (d) => d.source.y)
-        .attr("x2", (d) => d.target.x)
-        .attr("y2", (d) => d.target.y);
+  const links = createLinks(validData);
+  const nodes = createNodesFromLink(links, data);
+  const simulation = d3
+    .forceSimulation(nodes)
+    .force(
+      "link",
+      d3
+        .forceLink(links)
+        .id((d) => d.id)
+        .distance((link) => {
+          if (link.target.name === "fake") {
+            return linkLength / 2;
+          } else {
+            return linkLength;
+          }
+        })
+    )
+    .force("charge", d3.forceManyBody().strength(-300))
+    .force("center", d3.forceCenter(0, 0))
+    .on("tick", () => {
+      links.forEach((d) => {
+        d3.select(`#link-${d.source.id}-${d.target.id}`)
+          .attr("x1", d.source.x)
+          .attr("y1", d.source.y)
+          .attr("x2", d.target.x)
+          .attr("y2", d.target.y);
+      });
 
       nodes.forEach((d) => {
         if (d.name === "fake") {
@@ -136,54 +161,56 @@ function TreeChart({ data, svgRef }) {
         }
       });
 
-      nodeGroup.attr("transform", (d) => `translate(${d.x}, ${d.y})`);
+      nodes.forEach((d) => {
+        d3.select(`#card-${d.id}`).attr("x", d.x).attr("y", d.y);
+      });
     });
 
-    group
-      .append("text")
-      .attr("cx", svg_width / 2)
-      .attr("cy", svg_height / 2)
-      .attr("text-anchor", "middle")
-      .attr("font-size", 50)
-      .text("+");
+  useEffect(() => {
+    if (!svgRef.current || !selfRef.current) {
+      return;
+    }
 
-    const drag = d3
-    .drag()
-    .on("start", (event) => {
-      console.log("start");
-      const { x, y } = d3.zoomTransform(group.node());
-      event.subject = { startX: event.x - x, startY: event.y - y };
-    })
-    .on("drag", (event) => {
-      const x = event.x - event.subject.startX;
-      const y = event.y - event.subject.startY;
-      svg.attr("transform", `translate(${x}, ${y}) scale(${d3.zoomTransform(group.node()).k})`);
-    });
+    const svg = d3.select(svgRef.current);
+    const svg_width =
+      svg.node().clientWidth || svg.node().getBoundingClientRect().width;
+    const svg_height =
+      svg.node().clientHeight || svg.node().getBoundingClientRect().height;
+    const treeChart = d3.select(selfRef.current);
 
-    const zoom = d3.zoom().on("zoom", (event) => {
-      group.attr("transform", event.transform);
-    });
+    const links = d3.select(selfRef.current).selectAll(".link");
+    const nodes = d3.select(selfRef.current).selectAll(".node");
 
-    svg.call(zoom);
-    svg.call(drag);
-  }, [data, svgRef, gRef]);
+    console.log("links", links);
+    console.log("nodes", nodes);
 
-  return <g ref={gRef} className="treeChart" id="treeChart" />;
+    // simulation.force("center", d3.forceCenter(0, 0));
+  }, [selfRef, links, nodes, svgRef, simulation]);
+
+  return (
+    <g className="treeChart" id="treeChart">
+      <g>
+        {links.map((link) => {
+          return (
+            <MyLink key={link.source.id + "-" + link.target.id} link={link} />
+          );
+        })}
+      </g>
+      <g>
+        {nodes.map((node) =>
+          node.name === "fake" ? null : (
+            <MyPersonCard key={node.id} person={node} simulation={simulation} />
+          )
+        )}
+      </g>
+      <g>
+        <text fontSize={50}>+</text>
+      </g>
+    </g>
+  );
 }
 
-TreeChart.propTypes = {
-  data: PropTypes.array.isRequired,
-  svgRef: PropTypes.object.isRequired,
-};
-
-Canvas.propTypes = {
-  data: PropTypes.array.isRequired,
-};
-
 function App() {
-  // const [data, setData] = useState([]);
-  // setData(json_data);
-
   return (
     <>
       <Canvas data={json_data} />
@@ -193,20 +220,42 @@ function App() {
 
 function Canvas({ data }) {
   const svgRef = useRef();
-  const [currentTransform, setCurrentTransform] = useState(d3.zoomIdentity);
+  const gRef = useRef();
 
   useEffect(() => {
-    if (!svgRef.current) return;
-
     const svg = d3.select(svgRef.current);
-  }, [svgRef, currentTransform]);
+    const svgItems = d3.select(gRef.current);
+
+    const drag = d3
+      .drag()
+      .on("start", (event) => {
+        console.log("start");
+        const { x, y } = d3.zoomTransform(svgItems.node());
+        event.subject = { startX: event.x - x, startY: event.y - y };
+      })
+      .on("drag", (event) => {
+        const x = event.x - event.subject.startX;
+        const y = event.y - event.subject.startY;
+        svg.attr(
+          "transform",
+          `translate(${x}, ${y}) scale(${d3.zoomTransform(svgItems.node()).k})`
+        );
+      });
+
+    const zoom = d3.zoom().on("zoom", (event) => {
+      svgItems.attr("transform", event.transform);
+    });
+
+    svg.call(zoom);
+    svg.call(drag);
+  }, []);
 
   return (
-    <>
-      <svg ref={svgRef} className="canvas" id="canvas">
+    <svg ref={svgRef} className="canvas" id="canvas">
+      <g ref={gRef}>
         <TreeChart data={data} svgRef={svgRef} />
-      </svg>
-    </>
+      </g>
+    </svg>
   );
 }
 
